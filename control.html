@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <title>Exam Admin - Manage Questions</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f0f2f5; }
+        .admin-box { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #4f46e5; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #3f37c9; }
+        
+        .question-list { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .q-item { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .q-info { flex-grow: 1; margin-right: 15px; }
+        .delete-btn { background: #ef4444; color: white; width: auto; padding: 8px 15px; font-size: 14px; }
+        .delete-btn:hover { background: #dc2626; }
+        .tag { font-size: 12px; background: #e0e7ff; color: #4338ca; padding: 3px 8px; border-radius: 4px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="admin-box">
+        <h2>নতুন প্রশ্ন যোগ করুন</h2>
+        <label>বিষয়:</label>
+        <select id="sub">
+            <option value="Physics">Physics</option>
+            <option value="Chemistry">Chemistry</option>
+            <option value="Math">Math</option>
+        </select>
+        <input type="text" id="ques" placeholder="প্রশ্নটি লিখুন">
+        <input type="text" id="opt1" placeholder="অপশন ১">
+        <input type="text" id="opt2" placeholder="অপশন ২">
+        <input type="text" id="opt3" placeholder="অপশন ৩">
+        <input type="text" id="opt4" placeholder="অপশন ৪">
+        <input type="text" id="ans" placeholder="সঠিক উত্তর (হুবহু অপশনের মতো)">
+        <button id="saveBtn">ফায়ারবেসে সেভ করুন</button>
+    </div>
+
+    <div class="question-list">
+        <h3>অ্যাড করা প্রশ্নসমূহ</h3>
+        <div id="display-area">লোড হচ্ছে...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA2FOd_BoCqcu49ijp5ffB1kdPB56PHz3Y",
+            authDomain: "group-chat-74483.firebaseapp.com",
+            projectId: "group-chat-74483",
+            storageBucket: "group-chat-74483.firebasestorage.app",
+            messagingSenderId: "1033238887345",
+            appId: "1:1033238887345:web:2f4d10eabaf33e8e481b90"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const qCol = collection(db, "questions");
+
+        // ১. প্রশ্ন সেভ করা
+        document.getElementById('saveBtn').onclick = async () => {
+            const data = {
+                subject: document.getElementById('sub').value,
+                question: document.getElementById('ques').value,
+                options: [
+                    document.getElementById('opt1').value,
+                    document.getElementById('opt2').value,
+                    document.getElementById('opt3').value,
+                    document.getElementById('opt4').value
+                ],
+                answer: document.getElementById('ans').value
+            };
+
+            if(!data.question || !data.answer) return alert("দয়া করে সব ঘর পূরণ করুন!");
+
+            try {
+                await addDoc(qCol, data);
+                alert("প্রশ্নটি সফলভাবে সেভ হয়েছে!");
+                document.querySelectorAll('input').forEach(i => i.value = '');
+            } catch (e) { alert("Error: " + e.message); }
+        };
+
+        // ২. রিয়েল-টাইমে প্রশ্নগুলো দেখানো (List View)
+        onSnapshot(qCol, (snapshot) => {
+            const displayArea = document.getElementById('display-area');
+            displayArea.innerHTML = '';
+            
+            if(snapshot.empty) {
+                displayArea.innerHTML = "কোন প্রশ্ন পাওয়া যায়নি।";
+                return;
+            }
+
+            snapshot.forEach((qDoc) => {
+                const qData = qDoc.data();
+                const id = qDoc.id;
+
+                const item = document.createElement('div');
+                item.className = 'q-item';
+                item.innerHTML = `
+                    <div class="q-info">
+                        <span class="tag">${qData.subject}</span>
+                        <strong>${qData.question}</strong><br>
+                        <small>সঠিক উত্তর: ${qData.answer}</small>
+                    </div>
+                    <button class="delete-btn" onclick="deleteQuestion('${id}')">Delete</button>
+                `;
+                displayArea.appendChild(item);
+            });
+        });
+
+        // ৩. প্রশ্ন ডিলিট করা
+        window.deleteQuestion = async (id) => {
+            if(confirm("আপনি কি নিশ্চিতভাবে এই প্রশ্নটি ডিলিট করতে চান?")) {
+                try {
+                    await deleteDoc(doc(db, "questions", id));
+                    alert("ডিলিট সফল হয়েছে!");
+                } catch (e) { alert("Error: " + e.message); }
+            }
+        };
+    </script>
+</body>
+</html>
+
