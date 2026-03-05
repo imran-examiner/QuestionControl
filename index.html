@@ -14,13 +14,17 @@
         .q-info { flex-grow: 1; margin-right: 15px; }
         .delete-btn { background: #ef4444; color: white; width: auto; padding: 8px 15px; font-size: 14px; }
         .delete-btn:hover { background: #dc2626; }
+        /* এডিট বাটনের জন্য স্টাইল */
+        .edit-btn { background: #10b981; color: white; width: auto; padding: 8px 15px; font-size: 14px; margin-right: 5px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .edit-btn:hover { background: #059669; }
+        
         .tag { font-size: 12px; background: #e0e7ff; color: #4338ca; padding: 3px 8px; border-radius: 4px; margin-right: 5px; }
     </style>
 </head>
 <body>
 
     <div class="admin-box">
-        <h2>নতুন প্রশ্ন যোগ করুন</h2>
+        <h2 id="title">নতুন প্রশ্ন যোগ করুন</h2>
         <label>বিষয়:</label>
         <select id="sub">
             <option value="Physics">Physics</option>
@@ -43,7 +47,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        // এখানে updateDoc যোগ করা হয়েছে
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA2FOd_BoCqcu49ijp5ffB1kdPB56PHz3Y",
@@ -58,7 +63,9 @@
         const db = getFirestore(app);
         const qCol = collection(db, "questions");
 
-        // ১. প্রশ্ন সেভ করা
+        let editId = null; // এডিট আইডি ট্র্যাক করার জন্য
+
+        // ১. প্রশ্ন সেভ বা আপডেট করা
         document.getElementById('saveBtn').onclick = async () => {
             const data = {
                 subject: document.getElementById('sub').value,
@@ -75,13 +82,21 @@
             if(!data.question || !data.answer) return alert("দয়া করে সব ঘর পূরণ করুন!");
 
             try {
-                await addDoc(qCol, data);
-                alert("প্রশ্নটি সফলভাবে সেভ হয়েছে!");
+                if(editId) {
+                    await updateDoc(doc(db, "questions", editId), data);
+                    alert("আপডেট সফল হয়েছে!");
+                    editId = null;
+                    document.getElementById('saveBtn').innerText = "ফায়ারবেসে সেভ করুন";
+                    document.getElementById('title').innerText = "নতুন প্রশ্ন যোগ করুন";
+                } else {
+                    await addDoc(qCol, data);
+                    alert("প্রশ্নটি সফলভাবে সেভ হয়েছে!");
+                }
                 document.querySelectorAll('input').forEach(i => i.value = '');
             } catch (e) { alert("Error: " + e.message); }
         };
 
-        // ২. রিয়েল-টাইমে প্রশ্নগুলো দেখানো (List View)
+        // ২. রিয়েল-টাইমে প্রশ্নগুলো দেখানো
         onSnapshot(qCol, (snapshot) => {
             const displayArea = document.getElementById('display-area');
             displayArea.innerHTML = '';
@@ -103,13 +118,32 @@
                         <strong>${qData.question}</strong><br>
                         <small>সঠিক উত্তর: ${qData.answer}</small>
                     </div>
-                    <button class="delete-btn" onclick="deleteQuestion('${id}')">Delete</button>
+                    <div>
+                        <button class="edit-btn" onclick='prepareEdit("${id}", ${JSON.stringify(qData)})'>Edit</button>
+                        <button class="delete-btn" onclick="deleteQuestion('${id}')">Delete</button>
+                    </div>
                 `;
                 displayArea.appendChild(item);
             });
         });
 
-        // ৩. প্রশ্ন ডিলিট করা
+        // ৩. এডিট করার জন্য ডাটা ইনপুটে পাঠানো
+        window.prepareEdit = (id, data) => {
+            editId = id;
+            document.getElementById('sub').value = data.subject;
+            document.getElementById('ques').value = data.question;
+            document.getElementById('opt1').value = data.options[0];
+            document.getElementById('opt2').value = data.options[1];
+            document.getElementById('opt3').value = data.options[2];
+            document.getElementById('opt4').value = data.options[3];
+            document.getElementById('ans').value = data.answer;
+            
+            document.getElementById('saveBtn').innerText = "আপডেট করুন";
+            document.getElementById('title').innerText = "প্রশ্ন এডিট করুন";
+            window.scrollTo(0, 0);
+        };
+
+        // ৪. প্রশ্ন ডিলিট করা
         window.deleteQuestion = async (id) => {
             if(confirm("আপনি কি নিশ্চিতভাবে এই প্রশ্নটি ডিলিট করতে চান?")) {
                 try {
@@ -121,4 +155,3 @@
     </script>
 </body>
 </html>
-
